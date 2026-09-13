@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Packlist Generator</title>
+<style>
+  :root {
+    --bg: #EDF2F7;
+    --border: #d1d5db;
+    --blue-bg: #cfe2ff;
+    --blue-text: #084298;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 24px;
+    color: #1f2937;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; color: #1f2937; }
+  p.sub { margin: 0 0 20px 0; color: #6b7280; font-size: 13px; line-height: 1.6; }
+  .panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .panel h2 { font-size: 14px; margin: 0 0 10px 0; color: #374151; }
+  textarea {
+    width: 100%;
+    min-height: 130px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    resize: vertical;
+  }
+  .hint { font-size: 12px; color: #9ca3af; margin-top: 8px; line-height: 1.6; }
+  .hint code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; }
+  .row-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  button {
+    background: #3a6b35; color: white; border: none;
+    padding: 9px 18px; border-radius: 7px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #2d5429; }
+  button.secondary { background: white; color: #2d5429; border: 1px solid #3a6b35; }
+  button.secondary:hover { background: #eef5ec; }
+  #error { color: #b91c1c; font-size: 13px; margin-top: 10px; display: none; }
+
+  #count-line { text-align: right; font-weight: 700; padding: 4px 4px 14px; color: #1f2937; font-size: 22px; }
+  #count-line .count-sub { font-size: 14px; font-weight: 600; color: #6b7280; margin-top: 2px; }
+  #output-wrap { zoom: 1.1; }
+
+  .order-card {
+    background: white;
+    border: 3px solid #1f2937;
+    border-radius: 4px;
+    margin-bottom: 18px;
+    padding: 16px;
+    position: relative;
+  }
+  .order-card.new-group {
+    margin-top: 18px;
+  }
+  .order-card.new-group::before {
+    content: '';
+    position: absolute;
+    top: -18px;
+    left: -3px;
+    right: -3px;
+    height: 8px;
+    background: #facc15;
+    border-radius: 2px;
+  }
+  .order-top {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .order-left { min-width: 160px; flex-shrink: 0; font-weight: 700; font-size: 13px; }
+  .order-left .packbox { color: #dc2626; margin-top: 6px; }
+  .order-middle { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  .order-middle-top { display: flex; gap: 20px; align-items: flex-start; }
+  .order-main-thumb-wrap {
+    display: flex; flex-direction: row; align-items: center; gap: 14px; flex-shrink: 0;
+  }
+  .order-main-thumb {
+    width: 130px; height: 130px; object-fit: contain;
+    border: 2px solid #3a6b35; border-radius: 8px; background: white;
+    cursor: zoom-in;
+  }
+  .thumb-badge-wrap { position: relative; display: inline-block; }
+  .size-badge {
+    position: absolute; top: 4px; left: 4px;
+    background: white; border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px;
+    font-size: 11px; font-weight: 700; color: #1f2937;
+    pointer-events: none;
+  }
+  .qty-pill-main {
+    background: var(--blue-bg); color: var(--blue-text);
+    font-weight: 700; padding: 8px 22px; border-radius: 999px; font-size: 15px;
+  }
+  .qty-badge-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .instr-qr-badge {
+    display: inline-block; background: #198754; color: #fff;
+    font-size: 11px; font-weight: 700; padding: 4px 12px;
+    border-radius: 999px; text-decoration: none; white-space: nowrap;
+  }
+  .instr-qr-badge:hover { background: #157347; }
+  .sub-check-row { text-align: right; margin-top: 8px; }
+  .sub-check { transform: scale(1.3); cursor: pointer; }
+  .order-info-box {
+    flex: 1;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    max-width: 480px;
+  }
+  .order-info-box .barcode {
+    font-weight: 700; border-bottom: 1px solid var(--border);
+    padding-bottom: 8px; margin-bottom: 8px; font-size: 14px;
+  }
+  .order-info-box .sku-line { margin-bottom: 6px; font-size: 13px; }
+  .order-info-box .sku-line b { font-weight: 700; }
+  .sku-check { transform: scale(1.1); vertical-align: middle; margin-left: 6px; cursor: pointer; }
+  .order-right { min-width: 140px; flex-shrink: 0; text-align: right; font-size: 16px; font-weight: 700; }
+  .order-serial { color: #dc2626; font-size: 22px; font-weight: 800; margin-top: 10px; }
+
+  .sub-products-row {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    background: #f8f9fa; border-radius: 8px; padding: 16px;
+  }
+  .sub-card {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+    width: 210px; background: white; text-align: center;
+  }
+  .sub-card img {
+    width: 100%; height: 160px; object-fit: contain; cursor: zoom-in;
+  }
+  .sub-qty-pill {
+    background: var(--blue-bg); color: var(--blue-text); font-weight: 700;
+    padding: 4px 0; border-radius: 999px; margin-top: 8px; font-size: 13px;
+  }
+  .sub-sku { font-size: 12px; margin-top: 6px; font-weight: 600; }
+  .sub-variant { font-size: 12px; color: #4b5563; }
+  .thumb-missing { font-size: 11px; color: #9ca3af; }
+
+  #zoomPreview {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    width: 320px;
+    height: 320px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    padding: 10px;
+    pointer-events: none;
+  }
+  #zoomPreview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .order-main-thumb, .sub-card img { cursor: zoom-in; }
+</style>
+</head>
+<body>
+
+<h1>CSV → Packlist Generator</h1>
+<p class="sub">
+  For a combo SKU, use <code>+</code> to give multiple SKUs (e.g. <code>CRFF100YB+LHNSE27YB</code>).<br>
+  Give the matching image links separated by <code>|</code> (pipe) symbol in the same order.
+</p>
+
+<div class="panel">
+  <h2>1. Import your data</h2>
+  <div class="row-actions">
+    <button onclick="document.getElementById('fileInput').click()">Import CSV / HTML File</button>
+    <input type="file" id="fileInput" accept=".csv,.txt,.tsv,.htm,.html" style="display:none" onchange="importFile(event)">
+    <button class="secondary" onclick="clearAll()">Clear</button>
+  </div>
+  <input type="hidden" id="csvInput" value="">
+  <div id="error"></div>
+</div>
+
+<div class="panel" id="resultPanel" style="display:none;">
+  <h2>2. Output</h2>
+  <div class="row-actions" style="margin-top:0; margin-bottom:10px;">
+    <button class="secondary" onclick="downloadHtml()">Download Packlist</button>
+    <button class="secondary" onclick="viewHtml()">View Packlist</button>
+    <button class="secondary" onclick="downloadPrintTableFile()">View New Format</button>
+  </div>
+  <div id="count-line"></div>
+  <div id="output-wrap"></div>
+  <div class="row-actions">
+    <button class="secondary" onclick="downloadHtml()">Download Packlist</button>
+    <button class="secondary" onclick="viewHtml()">View Packlist</button>
+    <button class="secondary" onclick="downloadPrintTableFile()">View New Format</button>
+  </div>
+</div>
+
+<div id="zoomPreview"><img id="zoomPreview-img" src=""></div>
+
+<script>
+function detectDelimiter(line) {
+  const tabCount = (line.match(/\t/g) || []).length;
+  const commaCount = (line.match(/,/g) || []).length;
+  return tabCount >= commaCount ? '\t' : ',';
+}
+
+function parseCsvLine(line, delim) {
+  if (delim === '\t') return line.split('\t').map(s => s.trim());
+  const result = [];
+  let cur = '', inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') inQuotes = !inQuotes;
+    else if (c === ',' && !inQuotes) { result.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function escapeHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s) { return (s || '').replace(/"/g,'&quot;'); }
+
+function buildImgTag(url, cls) {
+  if (url && /^https?:\/\//i.test(url)) {
+    return `<img class="${cls}" src="${escapeAttr(url)}" onmouseenter="zoomShow(event,'${escapeAttr(url)}')" onmousemove="zoomMove(event)" onmouseleave="zoomHide()" onerror="this.outerHTML='<span class=&quot;thumb-missing&quot;>Image not found</span>'">`;
+  }
+  return `<span class="thumb-missing">No image</span>`;
+}
+
+function generate() {
+  showError('');
+  const raw = document.getElementById('csvInput').value.trim();
+  if (!raw) { showError('Data paste pannunga first da.'); return; }
+
+  const lines = raw.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length < 2) { showError('Header row + kammaksham oru data row venum.'); return; }
+
+  const delim = detectDelimiter(lines[0]);
+  const rows = lines.slice(1).map(l => parseCsvLine(l, delim));
+  renderRows(rows);
+}
+
+let lastRows = [];
+
+function renderRows(rows) {
+  lastRows = rows;
+  let cardsHtml = '';
+  let validCount = 0;
+  let lastShipAddr = null;
+  let serialCounter = 0;
+
+  rows.forEach(r => {
+    if (r.length < 5) return;
+    if (r.every(field => !field || !field.trim())) return;
+    const [orderId, packBox, barcode, sku, qty, ship1, ship2, images, variants, size, mainImgField, qrFlag, subSkuField, subQtyField, packMult] = r;
+    if (!orderId || !orderId.trim() || !sku || !sku.trim()) return;
+    validCount++;
+
+    const shipKey = (ship1 || '').trim();
+    let isNewGroup = false;
+    if (shipKey !== lastShipAddr) {
+      serialCounter++;
+      isNewGroup = serialCounter > 1;
+      lastShipAddr = shipKey;
+    }
+    const serialNum = serialCounter;
+
+    const labelSkus = (subSkuField || '').split('|').map(s => s.trim()).filter(Boolean);
+    const subSkus = labelSkus.length ? labelSkus : sku.split('+').map(s => s.trim()).filter(Boolean);
+    const imgList = (images || '').split('|').map(s => s.trim());
+    const varList = (variants || '').split('|').map(s => s.trim());
+    const subQtyList = (subQtyField || '').split('|').map(s => s.trim());
+    const mainImg = (mainImgField && mainImgField.trim()) ? mainImgField.trim() : (imgList[0] || '');
+    const qrHref = (qrFlag && /^https?:\/\//i.test(qrFlag)) ? qrFlag : '';
+    const hasQr = !!(qrFlag && qrFlag.trim());
+    const mainPillText = (packMult && packMult.trim() && packMult.trim() !== '1')
+      ? `${escapeHtml(packMult.trim())} X ${escapeHtml(qty)}`
+      : `X ${escapeHtml(qty)}`;
+
+    let subCards = '';
+    subSkus.forEach((subSku, i) => {
+      const img = imgList[i] || imgList[0] || mainImg || '';
+      const variant = varList[i] || '';
+      const subQty = subQtyList[i] || qty;
+      subCards += `
+        <div class="sub-card">
+          ${buildImgTag(img, '')}
+          <div class="sub-qty-pill">x ${escapeHtml(subQty)}</div>
+          <div class="sub-sku">${escapeHtml(subSku)}</div>
+          ${variant ? `<div class="sub-variant">${escapeHtml(variant)}</div>` : ''}
+          <div class="sub-check-row"><input type="checkbox" class="sub-check"></div>
+        </div>`;
+    });
+
+    cardsHtml += `
+    <div class="order-card${isNewGroup ? ' new-group' : ''}">
+      <div class="order-top">
+        <div class="order-left">
+          <div>Order Id - ${escapeHtml(orderId)}</div>
+          ${packBox ? `<div class="packbox">Packing Box - ${escapeHtml(packBox)}</div>` : ''}
+        </div>
+        <div class="order-middle">
+          <div class="order-middle-top">
+            <div class="order-main-thumb-wrap">
+              <div class="thumb-badge-wrap">
+                ${buildImgTag(mainImg, 'order-main-thumb')}
+                ${size ? `<span class="size-badge">${escapeHtml(size)}</span>` : ''}
+              </div>
+              <div class="qty-badge-col">
+                <div class="qty-pill-main">${mainPillText}</div>
+                ${hasQr ? `<a class="instr-qr-badge" href="${escapeAttr(qrHref || '#')}" target="_blank">Instruction QR</a>` : ''}
+              </div>
+            </div>
+            <div class="order-info-box">
+              ${barcode ? `<div class="barcode">${escapeHtml(barcode)}</div>` : ''}
+              <div class="sku-line"><b>Sku:</b> <b>${escapeHtml(sku)}</b> <input type="checkbox" class="sku-check"></div>
+              <div class="sku-line"><b>Quantity:</b> ${escapeHtml(qty)}</div>
+            </div>
+          </div>
+          ${subSkus.length > 1 ? `<div class="sub-products-row">${subCards}</div>` : ''}
+        </div>
+        <div class="order-right">
+          ${ship1 ? `<div>${escapeHtml(ship1)}</div>` : ''}
+          ${ship2 ? `<div>${escapeHtml(ship2)}</div>` : ''}
+          <div class="order-serial">${serialNum}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  if (validCount === 0) {
+    showError('Valid rows edhuvum kidaikala da. Order ID and SKU column check pannunga.');
+    return;
+  }
+
+  document.getElementById('output-wrap').innerHTML = cardsHtml;
+  document.getElementById('count-line').innerHTML = 'Total Products: ' + validCount +
+    '<div class="count-sub">Total Warehouse: ' + serialCounter + '</div>';
+  document.getElementById('resultPanel').style.display = 'block';
+}
+
+function zoomShow(event, url) {
+  const preview = document.getElementById('zoomPreview');
+  document.getElementById('zoomPreview-img').src = url;
+  preview.style.display = 'block';
+  zoomMove(event);
+}
+
+function zoomMove(event) {
+  const preview = document.getElementById('zoomPreview');
+  if (preview.style.display !== 'block') return;
+  const offset = 20;
+  const pw = preview.offsetWidth;
+  const ph = preview.offsetHeight;
+  let left = event.clientX + offset;
+  let top = event.clientY + offset;
+  if (left + pw > window.innerWidth) left = event.clientX - pw - offset;
+  if (top + ph > window.innerHeight) top = event.clientY - ph - offset;
+  preview.style.left = left + 'px';
+  preview.style.top = top + 'px';
+}
+
+function zoomHide() {
+  document.getElementById('zoomPreview').style.display = 'none';
+}
+
+function parseHtmlToRows(htmlString) {
+  const doc = new DOMParser().parseFromString(htmlString, 'text/html');
+  const items = Array.from(doc.querySelectorAll('li'));
+  const rows = [];
+
+  items.forEach(li => {
+    const divs = Array.from(li.querySelectorAll('div'));
+    const orderIdDiv = divs.find(d => d.textContent.trim().indexOf('Order Id') === 0 && d.querySelectorAll('div').length === 0);
+    if (!orderIdDiv) return;
+    const orderId = orderIdDiv.textContent.replace(/Order Id\s*-\s*/i, '').trim();
+
+    const packBoxDiv = divs.find(d => d.classList.contains('text-danger'));
+    const packBox = packBoxDiv ? packBoxDiv.textContent.replace(/Packing Box\s*-\s*/i, '').trim() : '';
+
+    const mainImgEl = li.querySelector('img.zoom-pack');
+    const mainImg = mainImgEl ? (mainImgEl.getAttribute('src') || '') : '';
+
+    const qrBadge = Array.from(li.querySelectorAll('.badge')).find(b => /instruction\s*qr/i.test(b.textContent));
+    const qrLink = qrBadge ? qrBadge.querySelector('a') : null;
+    const qrHref = qrLink ? (qrLink.getAttribute('href') || '') : '';
+    const qrFlag = qrBadge ? (qrHref || 'yes') : '';
+
+    const qtyH5 = Array.from(li.querySelectorAll('h5')).find(h => /X\s*\d+/i.test(h.textContent));
+    const qtyText = qtyH5 ? qtyH5.textContent.trim() : '';
+    let qty = '', packMult = '';
+    const packMatch = qtyText.match(/^(\d+)\s*X\s*(\d+)\s*pack/i);
+    if (packMatch) {
+      qty = packMatch[1];
+      packMult = packMatch[2];
+    } else {
+      const simpleMatch = qtyText.match(/X\s*(\d+)/i);
+      qty = simpleMatch ? simpleMatch[1] : (qtyText.match(/\d+/) || [''])[0];
+    }
+
+    const barcodeSpan = li.querySelector('.fw-bold.border-bottom span');
+    const barcode = barcodeSpan ? barcodeSpan.textContent.trim() : '';
+
+    const skuSpan = Array.from(li.querySelectorAll('span')).find(s => {
+      const oc = s.getAttribute('onclick');
+      return oc && oc.indexOf('copyText') !== -1;
+    });
+    const sku = skuSpan ? skuSpan.textContent.trim() : '';
+
+    const col2s = li.querySelectorAll('.col-2.small');
+    let ship1 = '', ship2 = '';
+    if (col2s.length > 1) {
+      const shipDivs = Array.from(col2s[col2s.length - 1].querySelectorAll('div'))
+        .map(d => d.textContent.trim()).filter(Boolean);
+      ship1 = shipDivs[0] || '';
+      ship2 = shipDivs[1] || '';
+    }
+
+    const labels = Array.from(li.querySelectorAll('label'));
+    const images = [];
+    const variants = [];
+    const subSkuList = [];
+    const subQtyList = [];
+    labels.forEach(label => {
+      const img = label.querySelector('img');
+      images.push(img ? (img.getAttribute('src') || '') : '');
+      const smalls = label.querySelectorAll('div.small');
+      subSkuList.push(smalls[0] ? smalls[0].textContent.trim() : '');
+      variants.push(smalls[1] ? smalls[1].textContent.trim() : '');
+      const qtyBadge = label.querySelector('.alert-primary');
+      const qtyMatch = qtyBadge ? qtyBadge.textContent.match(/\d+/) : null;
+      subQtyList.push(qtyMatch ? qtyMatch[0] : '');
+    });
+
+    const finalSku = sku || subSkuList.filter(Boolean).join('+');
+    if (!orderId || !finalSku) return;
+
+    rows.push([
+      orderId, packBox, barcode, finalSku, qty, ship1, ship2,
+      images.join('|'),
+      variants.join('|'),
+      '',
+      mainImg,
+      qrFlag,
+      subSkuList.join('|'),
+      subQtyList.join('|'),
+      packMult
+    ]);
+  });
+
+  return rows;
+}
+
+function importFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    const name = (file.name || '').toLowerCase();
+    const looksLikeHtml = name.endsWith('.htm') || name.endsWith('.html') || /<html[\s>]/i.test(content);
+    if (looksLikeHtml) {
+      showError('');
+      const rows = parseHtmlToRows(content);
+      if (!rows.length) {
+        showError('Intha HTML file la order data recognize panna mudiyala da.');
+        return;
+      }
+      renderRows(rows);
+    } else {
+      document.getElementById('csvInput').value = content;
+      generate();
+    }
+  };
+  reader.onerror = function() { showError('File read panna mudiyala da, try again.'); };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearAll() {
+  document.getElementById('csvInput').value = '';
+  document.getElementById('resultPanel').style.display = 'none';
+  showError('');
+}
+
+function buildFullHtml() {
+  const cardsHtml = document.getElementById('output-wrap').innerHTML;
+  const countHtml = document.getElementById('count-line').innerHTML;
+  const styleForExport = document.querySelector('style').innerHTML;
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Packlist</title>
+<style>body{font-family:Arial,sans-serif;background:#EDF2F7;padding:20px;}${styleForExport}</style>
+</head><body>
+<div id="count-line">${countHtml}</div>
+${cardsHtml}
+<div id="zoomPreview"><img id="zoomPreview-img" src=""></div>
+<script>
+function zoomShow(event, url) {
+  const preview = document.getElementById('zoomPreview');
+  document.getElementById('zoomPreview-img').src = url;
+  preview.style.display = 'block';
+  zoomMove(event);
+}
+function zoomMove(event) {
+  const preview = document.getElementById('zoomPreview');
+  if (preview.style.display !== 'block') return;
+  const offset = 20;
+  const pw = preview.offsetWidth;
+  const ph = preview.offsetHeight;
+  let left = event.clientX + offset;
+  let top = event.clientY + offset;
+  if (left + pw > window.innerWidth) left = event.clientX - pw - offset;
+  if (top + ph > window.innerHeight) top = event.clientY - ph - offset;
+  preview.style.left = left + 'px';
+  preview.style.top = top + 'px';
+}
+function zoomHide() {
+  document.getElementById('zoomPreview').style.display = 'none';
+}
+<\/script>
+</body></html>`;
+  return fullHtml;
+}
+
+function buildPrintTableHtml(autoPrint) {
+  const validRows = [];
+  lastRows.forEach(r => {
+    if (r.length < 5) return;
+    if (r.every(field => !field || !field.trim())) return;
+    const [orderId, packBox, barcode, sku, qty, ship1, ship2, images, variants, size, mainImgField] = r;
+    if (!orderId || !orderId.trim() || !sku || !sku.trim()) return;
+    validRows.push({ orderId, barcode, sku, qty, ship1, images, mainImg: mainImgField });
+  });
+
+  const totalUnits = validRows.reduce((sum, row) => sum + (parseInt(row.qty, 10) || 0), 0);
+
+  function buildRow(row) {
+    const imgList = (row.images || '').split('|').map(s => s.trim()).filter(Boolean);
+    const mainImg = (row.mainImg && row.mainImg.trim()) ? row.mainImg.trim() : (imgList[0] || '');
+    let imgCell = '';
+    if (mainImg && /^https?:\/\//i.test(mainImg)) {
+      imgCell = `<img src="${escapeAttr(mainImg)}" onerror="this.style.display='none'">`;
+    }
+    return `
+      <tr>
+        <td class="center wh-cell"><input type="text" class="wh-input" value=""></td>
+        <td class="img-cell">${imgCell || ''}</td>
+        <td class="sku-cell">${escapeHtml(row.sku)}</td>
+        <td>${escapeHtml(row.ship1)}</td>
+        <td>${escapeHtml(row.orderId)}</td>
+        <td>${escapeHtml(row.barcode)}</td>
+        <td class="center qty-cell">${escapeHtml(row.qty)}</td>
+        <td class="center"></td>
+      </tr>`;
+  }
+
+  let lastAddress = null;
+  const bodyRows = validRows.map((row, idx) => {
+    const isNewGroup = idx > 0 && row.ship1 !== lastAddress;
+    lastAddress = row.ship1;
+    const dividerRow = isNewGroup ? `<tr class="group-divider-row"><td colspan="8"><div class="group-divider-line"></div></td></tr>` : '';
+    return dividerRow + buildRow(row);
+  }).join('');
+
+  const tableHtml = `
+    <div class="summary-row">
+      <div class="stat-group">
+        <div class="stat">
+          <div class="stat-num">${validRows.length}</div>
+          <div class="stat-label">LINE ITEMS</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">${totalUnits}</div>
+          <div class="stat-label">TOTAL UNITS</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="whCountStat">0</div>
+          <div class="stat-label">WH NO'S</div>
+        </div>
+      </div>
+      <div class="date-group">
+        <div class="date-field">
+          <label>Start Date</label>
+          <input type="date" class="date-input" id="deliveryStart">
+        </div>
+        <div class="date-field">
+          <label>End Date</label>
+          <input type="date" class="date-input" id="deliveryEnd">
+        </div>
+      </div>
+      <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+    </div>
+    <table class="print-page">
+      <colgroup>
+        <col class="col-wh"><col class="col-img"><col class="col-sku"><col class="col-addr">
+        <col class="col-po"><col class="col-barcode"><col class="col-qty"><col class="col-packed">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="th-wh">WH No</th>
+          <th>Image</th>
+          <th>Lineitem SKU</th>
+          <th>Address 1</th>
+          <th>PO ID</th>
+          <th>Barcode</th>
+          <th>Quantity</th>
+          <th>Box No</th>
+        </tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
+
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Packlist</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; margin: 0; padding: 20px; color: #1f2937; }
+    .summary-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px; flex-wrap: wrap; gap: 14px;
+    }
+    .stat-group { display: flex; gap: 36px; }
+    .stat-num { font-size: 26px; font-weight: 800; color: #111827; line-height: 1; }
+    .stat-label { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: 0.5px; margin-top: 4px; }
+    .date-group { display: flex; gap: 18px; }
+    .date-field { display: flex; flex-direction: column; gap: 4px; }
+    .date-field label {
+      font-size: 10.5px; font-weight: 700; color: #6b7280; letter-spacing: 0.4px; text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .date-input {
+      border: 1.5px solid #1f2937; border-radius: 6px; padding: 6px 10px;
+      font-size: 13px; font-family: inherit; color: #1f2937; width: 160px;
+    }
+    .date-input:focus { outline: 1.5px solid #3a6b35; }
+    @media print { .date-input { border: 1px solid #1f2937; } }
+    .print-btn {
+      background: white; color: #1f2937; border: 1.5px solid #1f2937;
+      padding: 10px 20px; border-radius: 8px; font-size: 14px;
+      font-weight: 700; cursor: pointer;
+    }
+    .print-btn:hover { background: #f3f4f6; }
+    @media print { .print-btn { display: none !important; } }
+    table.print-page { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    table.print-page col.col-wh { width: 0.7cm; }
+    table.print-page col.col-img { width: 1.3cm; }
+    table.print-page col.col-sku { width: 21%; }
+    table.print-page col.col-addr { width: 15%; }
+    table.print-page col.col-po { width: 12%; }
+    table.print-page col.col-barcode { width: 18%; }
+    table.print-page col.col-qty { width: 8%; }
+    table.print-page col.col-packed { width: 8%; }
+    table.print-page thead { display: table-header-group; }
+    table.print-page tr { page-break-inside: avoid; height: 1.5cm; }
+    table.print-page tr.group-divider-row { height: auto; }
+    table.print-page th {
+      background: #fff; color: #111827; font-weight: 800; font-size: 12px;
+      letter-spacing: 0.3px; text-transform: uppercase; text-align: left;
+      padding: 10px 8px; border: none; border-bottom: 3px solid #1f2937;
+      border-right: 1px solid #d1d5db;
+      word-wrap: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.3;
+    }
+    table.print-page th:last-child { border-right: none; }
+    table.print-page th:first-child, table.print-page th:nth-child(7), table.print-page th:nth-child(8) { text-align: center; }
+    table.print-page th.th-wh { padding: 10px 2px; font-size: 10.5px; }
+    table.print-page td {
+      padding: 6px 10px; font-size: 12px; text-align: left; vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;
+      word-wrap: break-word; overflow-wrap: break-word; white-space: normal;
+    }
+    table.print-page td:last-child { border-right: none; }
+    table.print-page tbody tr:nth-child(even) { background: #f8f9fa; }
+    .group-divider-row td { padding: 0; border: none; line-height: 0; font-size: 0; }
+    .group-divider-line {
+      height: 0;
+      border-top: 2px solid #dc2626;
+      border-bottom: 2px solid #dc2626;
+      box-sizing: border-box;
+      page-break-inside: avoid;
+    }
+    table.print-page td.center { text-align: center; }
+    table.print-page td.qty-cell { text-align: center; font-weight: 700; font-size: 14px; }
+    td.img-cell { text-align: center; padding: 4px; }
+    td.img-cell img { width: 1.1cm; height: 1.1cm; object-fit: contain; border-radius: 4px; }
+    td.sku-cell { font-weight: 600; color: #1f4ed8; }
+    td.wh-cell { padding: 4px 1px; }
+    .wh-input {
+      width: 100%; text-align: center; font-size: 12px; font-weight: 800;
+      border: none; background: transparent; color: #1f2937;
+      font-family: inherit; padding: 4px 0;
+    }
+    .wh-input:focus { outline: 1.5px solid #3a6b35; border-radius: 4px; }
+    @media print {
+      .wh-input { outline: none !important; }
+    }
+    .packed-box {
+      display: inline-block; width: 18px; height: 18px;
+      border: 1.5px solid #9ca3af; border-radius: 4px;
+    }
+  </style>
+  </head><body>
+  ${tableHtml}
+  <script>
+    function updateWhCount() {
+      const inputs = document.querySelectorAll('.wh-input');
+      const unique = new Set();
+      inputs.forEach(function(inp) {
+        const v = inp.value.trim();
+        if (v) unique.add(v);
+      });
+      const el = document.getElementById('whCountStat');
+      if (el) el.textContent = unique.size;
+    }
+    document.addEventListener('input', function(e) {
+      if (e.target && e.target.classList.contains('wh-input')) updateWhCount();
+    });
+    updateWhCount();
+    ${autoPrint ? "window.onload = function() { window.print(); };" : ""}
+  <\/script>
+  </body></html>`;
+  return fullHtml;
+}
+
+function downloadPrintTableFile() {
+  const fullHtml = buildPrintTableHtml(false);
+  const blob = new Blob([fullHtml], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+function downloadPrintTablePdf() {
+  const fullHtml = buildPrintTableHtml(true);
+  const blob = new Blob([fullHtml], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+function viewHtml() {
+  const fullHtml = buildFullHtml();
+  const blob = new Blob([fullHtml], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+function downloadHtml() {
+  const fullHtml = buildFullHtml();
+  const blob = new Blob([fullHtml], {type: 'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'packlist_output.html';
+  a.click();
+}
+</script>
+</body>
+</html>
